@@ -1,0 +1,79 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Distribution / packaging
+build/
+dist/
+*.egg-info/
+pip-wheel-metadata/
+
+# Virtual environments
+.venv/
+venv/
+env/
+ENV/
+env.bak/
+venv.bak/
+
+# Backend specific
+backend/.venv/
+backend/__pycache__/
+backend/.pytest_cache/
+backend/.mypy_cache/
+
+# Logs and databases
+*.log
+.sqlite3
+
+# Environment variables
+.env
+.env.*
+
+# Docker
+docker-compose.override.yml
+.docker/*
+
+# VS Code
+.vscode/
+
+# macOS
+.DS_Store
+
+# Windows
+Thumbs.db
+desktop.ini
+
+# JetBrains / IntelliJ
+*.iml
+*.iws
+*.ipr
+
+# Flutter / Dart
+.dart_tool/
+.packages
+.flutter-plugins
+.flutter-plugins-deps
+pubspec.lock
+/.flutter-plugins
+/.flutter-plugins-deps
+/.dart_tool
+build/
+ios/Pods/
+ios/Runner.xcworkspace/
+android/.gradle/
+android/**/build/
+
+# Gradle
+.gradle/
+
+# Generated files
+*.class
+*.apk
+*.keystore
+
+# Misc
+coverage/
+.coverage
+htmlcov/
