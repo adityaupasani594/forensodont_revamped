@@ -59,6 +59,13 @@ class _MatchingProgressScreenState extends ConsumerState<MatchingProgressScreen>
                         WidgetsBinding.instance.addPostFrameCallback((_) {
                           context.go('/cases/${widget.caseId}/results/${widget.jobId}');
                         });
+                      } else if (data['status'] == 'failed' || data['stage'] == 'failed') {
+                        WidgetsBinding.instance.addPostFrameCallback((_) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(content: Text(data['detail'] ?? 'Analysis failed')),
+                          );
+                          context.pop();
+                        });
                       }
                       
                       final stage = data['stage'];
@@ -66,17 +73,27 @@ class _MatchingProgressScreenState extends ConsumerState<MatchingProgressScreen>
                       return MatchProgressTimeline(
                         stages: [
                           MatchStage(
-                            label: 'Segmenting teeth...', 
-                            isCompleted: stage != 'segmentation' && stage != null,
+                            label: 'Preprocessing evidence...',
+                            isCompleted: stage == 'segmentation' || stage == 'feature_extraction' || stage == 'video_analysis' || stage == 'matching' || stage == 'complete',
+                            isActive: stage == 'preprocessing',
+                          ),
+                          MatchStage(
+                            label: 'Segmenting teeth...',
+                            isCompleted: stage == 'feature_extraction' || stage == 'video_analysis' || stage == 'matching' || stage == 'complete',
                             isActive: stage == 'segmentation',
                           ),
                           MatchStage(
                             label: 'Extracting features...', 
-                            isCompleted: stage == 'matching' || stage == 'complete', 
+                            isCompleted: stage == 'video_analysis' || stage == 'matching' || stage == 'complete',
                             isActive: stage == 'feature_extraction',
                           ),
                           MatchStage(
-                            label: 'Running search...', 
+                            label: 'Analyzing video evidence...',
+                            isCompleted: stage == 'matching' || stage == 'complete',
+                            isActive: stage == 'video_analysis',
+                          ),
+                          MatchStage(
+                            label: 'Ranking findings...',
                             isCompleted: stage == 'complete',
                             isActive: stage == 'matching',
                           ),

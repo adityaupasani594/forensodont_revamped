@@ -17,7 +17,7 @@ class ResultsScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Search Results'),
+        title: const Text('Analysis Results'),
         actions: [
           IconButton(
             icon: const Icon(Icons.picture_as_pdf),
@@ -38,55 +38,62 @@ class ResultsScreen extends ConsumerWidget {
           ),
         ],
       ),
-      body: ref.watch(matchingResultsProvider(jobId)).when(
+      body: ref.watch(matchingResultsPayloadProvider(jobId)).when(
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (err, stack) => Center(child: Text('Error: $err')),
-        data: (candidates) => Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Padding(
-              padding: const EdgeInsets.all(16.0),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    '${candidates.length} candidates found',
-                    style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
-                  ),
-                  const SizedBox(height: 4),
-                  const Text(
-                    'Searched 4.2M records · 23.4 seconds',
-                    style: TextStyle(color: AppColors.textSecondary, fontSize: 12, fontFamily: 'IBM Plex Mono'),
-                  ),
-                ],
-              ),
-            ),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16.0),
-              child: SingleChildScrollView(
-                scrollDirection: Axis.horizontal,
-                child: Row(
+        data: (payload) {
+          final candidates = (payload?['candidates'] as List?) ?? [];
+          final summary = (payload?['analysis_summary'] as Map?)?.cast<String, dynamic>() ?? {};
+
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Padding(
+                padding: const EdgeInsets.all(16.0),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    _buildSortChip('Rank', isSelected: true),
-                    _buildSortChip('Confidence'),
-                    _buildSortChip('Age match'),
-                    _buildSortChip('Restoration'),
+                    Text(
+                      '${candidates.length} findings found',
+                      style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
+                    ),
+                    const SizedBox(height: 4),
+                    const Text(
+                      'Processed multimodal evidence · high-throughput inference',
+                      style: TextStyle(color: AppColors.textSecondary, fontSize: 12, fontFamily: 'IBM Plex Mono'),
+                    ),
                   ],
                 ),
               ),
-            ),
-            const SizedBox(height: 12),
-            Expanded(
-              child: ListView.builder(
-                padding: const EdgeInsets.symmetric(horizontal: 16),
-                itemCount: candidates.length,
-                itemBuilder: (context, index) {
-                  return CandidateCard(caseId: caseId, jobId: jobId, candidate: candidates[index]);
-                },
+              _AnalysisSummaryCard(summary: summary),
+              const SizedBox(height: 12),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                child: SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  child: Row(
+                    children: [
+                      _buildSortChip('Rank', isSelected: true),
+                      _buildSortChip('Confidence'),
+                      _buildSortChip('Age match'),
+                      _buildSortChip('Restoration'),
+                    ],
+                  ),
+                ),
               ),
-            ),
-          ],
-        ),
+              const SizedBox(height: 12),
+              Expanded(
+                child: ListView.builder(
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  itemCount: candidates.length,
+                  itemBuilder: (context, index) {
+                    return CandidateCard(caseId: caseId, jobId: jobId, candidate: candidates[index]);
+                  },
+                ),
+              ),
+            ],
+          );
+        },
       ),
       bottomNavigationBar: Container(
         padding: const EdgeInsets.all(16),
@@ -99,11 +106,11 @@ class ResultsScreen extends ConsumerWidget {
             final success = await ref.read(casesRepositoryProvider).promoteToUnidentified(caseId);
             if (context.mounted) {
               ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(content: Text(success ? 'Case added to unidentified database' : 'Failed to add to database')),
+                SnackBar(content: Text(success ? 'Case added to evidence set' : 'Failed to add to evidence set')),
               );
             }
           },
-          child: const Text('NO MATCH? ADD TO UNIDENTIFIED DATABASE'),
+          child: const Text('NO MATCH? ADD TO EVIDENCE SET'),
         ),
       ),
     );
@@ -119,6 +126,93 @@ class ResultsScreen extends ConsumerWidget {
         backgroundColor: AppColors.surface,
         selectedColor: AppColors.primary.withOpacity(0.2),
         checkmarkColor: AppColors.primary,
+      ),
+    );
+  }
+}
+
+class _AnalysisSummaryCard extends StatelessWidget {
+  final Map<String, dynamic> summary;
+  const _AnalysisSummaryCard({required this.summary});
+
+  @override
+  Widget build(BuildContext context) {
+    final modalities = (summary['modalities'] as Map?)?.cast<String, dynamic>() ?? {};
+    final highlights = (summary['highlights'] as List?) ?? [];
+
+    bool enabled(String key) => modalities[key] == true;
+
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 16),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: AppColors.border),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'Evidence Summary',
+            style: TextStyle(fontWeight: FontWeight.bold),
+          ),
+          const SizedBox(height: 8),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              _ModalityChip(label: 'Image', enabled: enabled('image')),
+              _ModalityChip(label: 'Audio', enabled: enabled('audio')),
+              _ModalityChip(label: 'Video', enabled: enabled('video')),
+            ],
+          ),
+          if (highlights.isNotEmpty) ...[
+            const SizedBox(height: 10),
+            Text(
+              '${highlights.first}',
+              style: const TextStyle(color: AppColors.textSecondary, fontSize: 12),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class _ModalityChip extends StatelessWidget {
+  final String label;
+  final bool enabled;
+  const _ModalityChip({required this.label, required this.enabled});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        color: enabled ? AppColors.primary.withOpacity(0.15) : AppColors.card,
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(
+          color: enabled ? AppColors.primary : AppColors.border,
+        ),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(
+            enabled ? Icons.check_circle : Icons.remove_circle_outline,
+            size: 14,
+            color: enabled ? AppColors.primary : AppColors.textSecondary,
+          ),
+          const SizedBox(width: 6),
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: 11,
+              color: enabled ? AppColors.textPrimary : AppColors.textSecondary,
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -155,7 +249,7 @@ class CandidateCard extends StatelessWidget {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          'Unidentified Record #$recordId',
+                          'Evidence Record #$recordId',
                           style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
                         ),
                         const SizedBox(height: 4),
@@ -163,7 +257,7 @@ class CandidateCard extends StatelessWidget {
                           children: [
                             const Icon(Icons.location_on_outlined, size: 14, color: AppColors.textSecondary),
                             const SizedBox(width: 4),
-                            Text('Interpol Red Notice · 2021', style: Theme.of(context).textTheme.bodySmall),
+                            Text('Forensic dental reference · multimodal review', style: Theme.of(context).textTheme.bodySmall),
                           ],
                         ),
                       ],
@@ -181,7 +275,7 @@ class CandidateCard extends StatelessWidget {
                           fontFamily: 'Space Grotesk',
                         ),
                       ),
-                      const Text('MATCH', style: TextStyle(fontSize: 10, color: AppColors.textSecondary)),
+                      const Text('FINDING', style: TextStyle(fontSize: 10, color: AppColors.textSecondary)),
                     ],
                   ),
                 ],

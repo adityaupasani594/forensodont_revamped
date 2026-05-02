@@ -13,6 +13,51 @@ class MatchingRepository {
 
   MatchingRepository(this._dio);
 
+  Future<String?> uploadOpg(String caseId, String filePath) async {
+    try {
+      final form = FormData.fromMap({
+        'file': await MultipartFile.fromFile(filePath),
+      });
+      final response = await _dio.post('/opg/cases/$caseId/opg', data: form);
+      if (response.statusCode == 200) {
+        return response.data['id'] as String?;
+      }
+      return null;
+    } catch (e) {
+      return null;
+    }
+  }
+
+  Future<String?> uploadAudio(String caseId, String filePath) async {
+    try {
+      final form = FormData.fromMap({
+        'file': await MultipartFile.fromFile(filePath),
+      });
+      final response = await _dio.post('/opg/cases/$caseId/audio', data: form);
+      if (response.statusCode == 200) {
+        return response.data['asset']?['path'] as String?;
+      }
+      return null;
+    } catch (e) {
+      return null;
+    }
+  }
+
+  Future<String?> uploadVideo(String caseId, String filePath) async {
+    try {
+      final form = FormData.fromMap({
+        'file': await MultipartFile.fromFile(filePath),
+      });
+      final response = await _dio.post('/opg/cases/$caseId/video', data: form);
+      if (response.statusCode == 200) {
+        return response.data['asset']?['path'] as String?;
+      }
+      return null;
+    } catch (e) {
+      return null;
+    }
+  }
+
   Future<Map<String, dynamic>?> startMatch(String caseId, String opgImageId, Map<String, dynamic> filters) async {
     try {
       final response = await _dio.post('/match/', data: {
@@ -37,11 +82,23 @@ class MatchingRepository {
     return channel.stream.map((event) => jsonDecode(event));
   }
 
-  Future<List<dynamic>> getResults(String jobId) async {
+  Future<Map<String, dynamic>?> getResultsPayload(String jobId) async {
     try {
       final response = await _dio.get('/match/$jobId/results');
       if (response.statusCode == 200) {
-        return response.data['candidates'] ?? [];
+        return Map<String, dynamic>.from(response.data as Map);
+      }
+      return null;
+    } catch (e) {
+      return null;
+    }
+  }
+
+  Future<List<dynamic>> getResults(String jobId) async {
+    try {
+      final payload = await getResultsPayload(jobId);
+      if (payload != null) {
+        return payload['candidates'] ?? [];
       }
       return [];
     } catch (e) {

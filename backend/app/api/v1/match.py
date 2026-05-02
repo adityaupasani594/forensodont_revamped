@@ -1,7 +1,7 @@
 import uuid
 import json
 import asyncio
-from fastapi import APIRouter, Depends, Request, WebSocket, WebSocketDisconnect
+from fastapi import APIRouter, Depends, Request, WebSocket, WebSocketDisconnect, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from app.core.database import get_db
@@ -19,7 +19,16 @@ async def run_match(
     data: dict, # case_id, opg_image_id, filters
     db: AsyncSession = Depends(get_db)
 ):
-    case_id = uuid.UUID(data.get("case_id"))
+    case_id_raw = data.get("case_id")
+    opg_image_id = data.get("opg_image_id")
+    if not case_id_raw or not opg_image_id:
+        raise HTTPException(status_code=400, detail="case_id and opg_image_id are required")
+
+    try:
+        case_id = uuid.UUID(case_id_raw)
+        uuid.UUID(opg_image_id)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail="case_id and opg_image_id must be valid UUIDs") from exc
     job_id = str(uuid.uuid4())
     
     job = MatchJob(
@@ -31,7 +40,7 @@ async def run_match(
     await log_audit_event(db, action="match_started", case_id=case_id, request=request)
     await db.commit()
     
-    match_task.delay(str(case_id), data.get("opg_image_id"), data.get("filters", {}), job_id)
+    match_task.delay(str(case_id), opg_image_id, data.get("filters", {}), job_id)
     
     return {
         "job_id": job_id,
@@ -60,28 +69,45 @@ async def match_progress_websocket(websocket: WebSocket, job_id: str):
 
 @router.get("/{job_id}/results")
 async def get_match_results(job_id: uuid.UUID, db: AsyncSession = Depends(get_db)):
+    job = await db.get(MatchJob, job_id)
+    filters = (job.filters if job and job.filters else {})
+
     # Fetch results from database
     result = await db.execute(
         select(MatchCandidate).where(MatchCandidate.job_id == job_id).order_by(MatchCandidate.rank)
     )
     candidates = result.scalars().all()
+
+    candidate_payload = [
+        {
+            "id": str(c.id),
+            "rank": c.rank,
+            "confidence": c.overall_confidence,
+            "morphology": c.morphology_confidence,
+            "restoration": c.restoration_confidence,
+            "spatial": c.spatial_confidence,
+            "age": c.age_alignment_confidence,
+            "record_id": f"REC-{str(c.population_record_id)[:8]}",
+            "features": c.per_tooth_matches.get("highlights", []) if c.per_tooth_matches else []
+        }
+        for c in candidates
+    ]
+    highlights = candidate_payload[0]["features"] if candidate_payload else []
     
     return {
         "status": "success",
         "job_id": str(job_id),
-        "candidates": [
-            {
-                "id": str(c.id),
-                "rank": c.rank,
-                "confidence": c.overall_confidence,
-                "morphology": c.morphology_confidence,
-                "restoration": c.restoration_confidence,
-                "spatial": c.spatial_confidence,
-                "age": c.age_alignment_confidence,
-                "record_id": f"REC-{str(c.population_record_id)[:8]}",
-                "features": c.per_tooth_matches.get("highlights", []) if c.per_tooth_matches else []
-            } for c in candidates
-        ]
+        "analysis_summary": {
+            "modalities": {
+                "image": True,
+                "audio": bool(filters.get("audio_note") or filters.get("audio_asset_path")),
+                "video": bool(filters.get("video_asset_path")),
+            },
+            "audio_note_provided": bool(filters.get("audio_note")),
+            "video_attached": bool(filters.get("video_asset_path")),
+            "highlights": highlights,
+        },
+        "candidates": candidate_payload,
     }
 
 @router.get("/{job_id}/results/{candidate_id}")

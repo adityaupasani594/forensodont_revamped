@@ -2,7 +2,7 @@ from typing import List, Optional
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 class Settings(BaseSettings):
-    PROJECT_NAME: str = "Forensodont OPG Forensic Platform"
+    PROJECT_NAME: str = "Forensodont Multimodal OPG Intelligence"
     API_V1_STR: str = "/api/v1"
     SECRET_KEY: str = "super-secret-key-for-development"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 15

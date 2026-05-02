@@ -1,24 +1,19 @@
 import numpy as np
+from app.ml.inference import inference_engine
 from app.services.segmentation import SegmentationResult
 
 def extract_features(image_path: str, segmentation: SegmentationResult) -> np.ndarray:
     """
     Extracts a composite feature vector for similarity matching.
-    Returns: FeatureVector (numpy array, float32, shape [544])
+    Returns: FeatureVector (numpy array, float32, shape [2048])
     """
-    # Mocking feature extraction
-    # Concatenate per-tooth morphology (N×32 floats) → pooled to 256 floats
-    # Restoration encoding (N×16 binary/float) → pooled to 128 floats
-    # Spatial GNN embedding: 128 floats
-    # Global age/sex features: 32 floats
-    # Total: 544-dimensional float vector (L2-normalised)
-    
-    # Generate random 544-dimensional vector
-    vector = np.random.rand(544).astype(np.float32)
-    
-    # L2 normalize
+    # The first production model path is a pretrained ResNet-50 embedding.
+    # Segmentation can later be used to crop or mask regions of interest.
+    embedding = inference_engine.get_embedding_from_image(image_path)
+    vector = np.asarray(embedding, dtype=np.float32)
+
     norm = np.linalg.norm(vector)
     if norm > 0:
         vector = vector / norm
-        
+
     return vector

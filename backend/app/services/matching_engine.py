@@ -4,6 +4,7 @@ import os
 import uuid
 from typing import List, Dict, Any
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import func
 from sqlalchemy.future import select
 from app.core.config import settings
 from app.models.population_record import PopulationRecord
@@ -18,7 +19,7 @@ class SearchFilters:
         self.regions = regions
 
 class MatchingEngine:
-    def __init__(self, dimension: int = 544):
+    def __init__(self, dimension: int = 2048):
         self.dimension = dimension
         self.index = None
         self.id_map = [] # To map index to uuid string

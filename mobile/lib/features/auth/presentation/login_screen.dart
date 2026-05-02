@@ -48,7 +48,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                       ),
                       const SizedBox(height: 16),
                       Text(
-                        'DentID',
+                        'Forensodont',
                         style: Theme.of(context).textTheme.displayMedium?.copyWith(
                               fontWeight: FontWeight.bold,
                               letterSpacing: 2,
@@ -110,7 +110,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                       }
                     }
                   },
-                  child: const Text('SIGN IN'),
+                  child: const Text('ENTER ANALYSIS SUITE'),
                 ),
 
                 const SizedBox(height: 16),

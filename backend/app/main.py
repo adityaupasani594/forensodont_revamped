@@ -19,7 +19,11 @@ app.add_middleware(
 
 @app.get("/")
 async def root():
-    return {"message": "Welcome to Forensodont API", "version": "1.0.0"}
+    return {
+        "message": "Welcome to Forensodont Multimodal OPG Intelligence API",
+        "version": "1.0.0",
+        "track": "Vision & Multimodal AI",
+    }
 
 # Include routers
 app.include_router(auth.router, prefix=f"{settings.API_V1_STR}/auth", tags=["auth"])

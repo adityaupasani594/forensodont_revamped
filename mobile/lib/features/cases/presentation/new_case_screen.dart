@@ -1,12 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:file_picker/file_picker.dart';
 import 'package:go_router/go_router.dart';
 import '../../../core/theme/app_theme.dart';
 import 'widgets/fdi_tooth_chart.dart';
 import 'widgets/quality_indicator.dart';
 import '../../matching/data/matching_repository.dart';
 import '../data/cases_repository.dart';
-import '../../reports/data/reports_repository.dart';
 
 
 
@@ -23,7 +23,14 @@ class _NewCaseScreenState extends ConsumerState<NewCaseScreen> {
   RangeValues _ageRange = const RangeValues(28, 45);
   String _selectedSex = 'Unknown';
   String? _caseId;
-  String? _opgImageId = 'opg-mock-uuid'; // This would come from an actual upload in a real app
+  String? _opgImageId;
+  String? _selectedOpgPath;
+  String? _selectedAudioPath;
+  String? _selectedVideoPath;
+  String? _audioAssetPath;
+  String? _videoAssetPath;
+  bool _isUploadingEvidence = false;
+  final TextEditingController _audioNoteController = TextEditingController();
   
   // Simulation of preprocessing stages
   final List<Map<String, dynamic>> _preprocessingStages = [
@@ -32,6 +39,12 @@ class _NewCaseScreenState extends ConsumerState<NewCaseScreen> {
     {'label': 'Correcting orientation...', 'status': 'loading'},
     {'label': 'Assessing quality...', 'status': 'pending'},
   ];
+
+  @override
+  void dispose() {
+    _audioNoteController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -81,7 +94,7 @@ class _NewCaseScreenState extends ConsumerState<NewCaseScreen> {
   String _getStepTitle() {
     switch (_currentStep) {
       case 0: return 'Case Details';
-      case 1: return 'OPG Capture';
+      case 1: return 'Evidence Capture';
       case 2: return 'Preprocessing';
       case 3: return 'Search Filters';
       default: return '';
@@ -132,28 +145,20 @@ class _NewCaseScreenState extends ConsumerState<NewCaseScreen> {
   }
 
   Widget _buildCaptureStep() {
-    return Column(
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(16),
+      child: Column(
       children: [
-        Padding(
-          padding: const EdgeInsets.symmetric(vertical: 16.0),
-          child: SegmentedButton<int>(
-            segments: const [
-              ButtonSegment(value: 0, label: Text('Camera'), icon: Icon(Icons.camera_alt)),
-              ButtonSegment(value: 1, label: Text('Import'), icon: Icon(Icons.file_upload)),
-            ],
-            selected: {0},
-            onSelectionChanged: (set) {},
-          ),
-        ),
-        Expanded(
-          child: Container(
-            margin: const EdgeInsets.all(16),
+        Container(
+          margin: const EdgeInsets.only(bottom: 16),
             decoration: BoxDecoration(
               color: Colors.black,
               borderRadius: BorderRadius.circular(12),
               border: Border.all(color: AppColors.border),
             ),
-            child: Stack(
+            child: SizedBox(
+              height: 260,
+              child: Stack(
               children: [
                 const Center(child: Icon(Icons.camera_alt, size: 64, color: AppColors.surface)),
                 Positioned.fill(
@@ -171,15 +176,52 @@ class _NewCaseScreenState extends ConsumerState<NewCaseScreen> {
             ),
           ),
         ),
-        const Padding(
-          padding: EdgeInsets.all(24.0),
-          child: Text(
-            'Align the dental arch silhouette with the X-ray for optimal capture.',
-            textAlign: TextAlign.center,
-            style: TextStyle(fontSize: 12, color: AppColors.textSecondary),
-          ),
+        const Text(
+          'Upload an OPG image, then optionally attach audio notes and a short evidence video.',
+          textAlign: TextAlign.center,
+          style: TextStyle(fontSize: 12, color: AppColors.textSecondary),
         ),
+        const SizedBox(height: 16),
+        _buildUploadTile(
+          title: 'OPG Image (required)',
+          subtitle: _selectedOpgPath ?? 'No file selected',
+          icon: Icons.image_outlined,
+          onTap: () async {
+            final path = await _pickSingleFile(['png', 'jpg', 'jpeg', 'dcm']);
+            if (path != null) {
+              setState(() => _selectedOpgPath = path);
+            }
+          },
+        ),
+        _buildUploadTile(
+          title: 'Audio Note (optional)',
+          subtitle: _selectedAudioPath ?? 'No file selected',
+          icon: Icons.mic_none,
+          onTap: () async {
+            final path = await _pickSingleFile(['wav', 'mp3', 'm4a']);
+            if (path != null) {
+              setState(() => _selectedAudioPath = path);
+            }
+          },
+        ),
+        _buildUploadTile(
+          title: 'Video Snippet (optional)',
+          subtitle: _selectedVideoPath ?? 'No file selected',
+          icon: Icons.videocam_outlined,
+          onTap: () async {
+            final path = await _pickSingleFile(['mp4', 'mov', 'avi']);
+            if (path != null) {
+              setState(() => _selectedVideoPath = path);
+            }
+          },
+        ),
+        if (_isUploadingEvidence)
+          const Padding(
+            padding: EdgeInsets.only(top: 12),
+            child: LinearProgressIndicator(),
+          ),
       ],
+      ),
     );
   }
 
@@ -264,6 +306,15 @@ class _NewCaseScreenState extends ConsumerState<NewCaseScreen> {
             onSelectionChanged: (set) => setState(() => _selectedSex = set.first),
           ),
           const SizedBox(height: 32),
+          _buildSectionHeader('Audio Context (optional)'),
+          TextFormField(
+            controller: _audioNoteController,
+            maxLines: 3,
+            decoration: const InputDecoration(
+              hintText: 'Examiner or witness note, e.g. possible implant near molar with fracture...',
+            ),
+          ),
+          const SizedBox(height: 32),
           _buildSectionHeader('Clinical filters — Tooth chart'),
           const Text('Mark any teeth absent from the OPG', style: TextStyle(color: AppColors.textSecondary, fontSize: 12)),
           const SizedBox(height: 16),
@@ -331,6 +382,74 @@ class _NewCaseScreenState extends ConsumerState<NewCaseScreen> {
     );
   }
 
+  Widget _buildUploadTile({
+    required String title,
+    required String subtitle,
+    required IconData icon,
+    required VoidCallback onTap,
+  }) {
+    return Card(
+      margin: const EdgeInsets.only(bottom: 10),
+      child: ListTile(
+        leading: Icon(icon, color: AppColors.primary),
+        title: Text(title),
+        subtitle: Text(
+          subtitle,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: const TextStyle(color: AppColors.textSecondary),
+        ),
+        trailing: const Icon(Icons.upload_file),
+        onTap: onTap,
+      ),
+    );
+  }
+
+  Future<String?> _pickSingleFile(List<String> extensions) async {
+    final result = await FilePicker.platform.pickFiles(
+      allowMultiple: false,
+      type: FileType.custom,
+      allowedExtensions: extensions,
+    );
+    final file = result?.files.first;
+    return file?.path;
+  }
+
+  Future<void> _uploadEvidenceForCase() async {
+    if (_caseId == null) return;
+    if (_selectedOpgPath == null) {
+      throw Exception('Please select an OPG image first.');
+    }
+
+    setState(() => _isUploadingEvidence = true);
+    try {
+      final repo = ref.read(matchingRepositoryProvider);
+      final opgId = await repo.uploadOpg(_caseId!, _selectedOpgPath!);
+      if (opgId == null) {
+        throw Exception('Failed to upload OPG image.');
+      }
+
+      String? uploadedVideoPath;
+      String? uploadedAudioPath;
+      if (_selectedAudioPath != null) {
+        uploadedAudioPath = await repo.uploadAudio(_caseId!, _selectedAudioPath!);
+      }
+      if (_selectedVideoPath != null) {
+        uploadedVideoPath = await repo.uploadVideo(_caseId!, _selectedVideoPath!);
+      }
+
+      setState(() {
+        _opgImageId = opgId;
+        _audioAssetPath = uploadedAudioPath;
+        _videoAssetPath = uploadedVideoPath;
+      });
+    } finally {
+      if (mounted) {
+        setState(() => _isUploadingEvidence = false);
+      }
+    }
+  }
+
   Widget _buildBottomBar() {
     return Container(
       padding: const EdgeInsets.all(24.0),
@@ -372,19 +491,40 @@ class _NewCaseScreenState extends ConsumerState<NewCaseScreen> {
                     }
                   }
                 } else if (_currentStep < 3) {
+                  if (_currentStep == 1) {
+                    try {
+                      await _uploadEvidenceForCase();
+                    } catch (e) {
+                      if (mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(content: Text(e.toString().replaceFirst('Exception: ', ''))),
+                        );
+                      }
+                      return;
+                    }
+                  }
                   setState(() => _currentStep++);
                 } else {
-                  // Trigger real match search
-                  if (_caseId == null) return;
+                  if (_caseId == null || _opgImageId == null) {
+                    if (mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('Missing case or OPG evidence.')),
+                      );
+                    }
+                    return;
+                  }
 
                   final result = await ref.read(matchingRepositoryProvider).startMatch(
                     _caseId!,
-                    _opgImageId ?? 'mock-opg-id', 
+                    _opgImageId!,
                     {
                       'age_min': _ageRange.start.round(),
                       'age_max': _ageRange.end.round(),
                       'sex': _selectedSex,
                       'missing_teeth': _missingTeeth.toList(),
+                      'audio_note': _audioNoteController.text.trim(),
+                      if (_audioAssetPath != null) 'audio_asset_path': _audioAssetPath,
+                      if (_videoAssetPath != null) 'video_asset_path': _videoAssetPath,
                     },
                   );
                   
@@ -395,7 +535,7 @@ class _NewCaseScreenState extends ConsumerState<NewCaseScreen> {
                   }
                 }
               },
-              child: Text(_currentStep == 3 ? 'RUN SEARCH' : 'CONTINUE'),
+              child: Text(_currentStep == 3 ? 'RUN ANALYSIS' : 'CONTINUE'),
             ),
           ),
 

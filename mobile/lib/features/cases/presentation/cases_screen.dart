@@ -16,7 +16,7 @@ class CasesScreen extends ConsumerWidget {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('DentID'),
+        title: const Text('Forensodont'),
         actions: [
           IconButton(
             icon: const Icon(Icons.notifications_none),
@@ -38,7 +38,7 @@ class CasesScreen extends ConsumerWidget {
             padding: const EdgeInsets.all(16.0),
             child: TextField(
               decoration: InputDecoration(
-                hintText: 'Search cases by ID or date...',
+                hintText: 'Search examinations by ID or date...',
                 prefixIcon: const Icon(Icons.search, color: AppColors.textSecondary),
                 contentPadding: const EdgeInsets.symmetric(vertical: 0),
               ),
@@ -66,7 +66,7 @@ class CasesScreen extends ConsumerWidget {
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () => context.push('/cases/new'),
         icon: const Icon(Icons.add),
-        label: const Text('New Case'),
+        label: const Text('New Examination'),
       ),
     );
   }

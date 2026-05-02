@@ -24,7 +24,7 @@ class DentIDApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp.router(
-      title: 'DentID',
+      title: 'Forensodont Multimodal OPG Intelligence',
       theme: AppTheme.darkTheme,
       routerConfig: router,
       debugShowCheckedModeBanner: false,

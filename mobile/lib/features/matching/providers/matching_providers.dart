@@ -6,6 +6,11 @@ final matchingResultsProvider = FutureProvider.family<List<dynamic>, String>((re
   return repository.getResults(jobId);
 });
 
+final matchingResultsPayloadProvider = FutureProvider.family<Map<String, dynamic>?, String>((ref, jobId) async {
+  final repository = ref.watch(matchingRepositoryProvider);
+  return repository.getResultsPayload(jobId);
+});
+
 final candidateDetailsProvider = FutureProvider.family<Map<String, dynamic>?, ({String jobId, String candidateId})>((ref, arg) async {
   final repository = ref.watch(matchingRepositoryProvider);
   return repository.getCandidateDetails(arg.jobId, arg.candidateId);
