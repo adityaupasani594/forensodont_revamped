@@ -4,6 +4,7 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 class Settings(BaseSettings):
     PROJECT_NAME: str = "Forensodont Multimodal OPG Intelligence"
     API_V1_STR: str = "/api/v1"
+    ENVIRONMENT: str = "development"
     SECRET_KEY: str = "super-secret-key-for-development"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 15
     REFRESH_TOKEN_EXPIRE_DAYS: int = 7

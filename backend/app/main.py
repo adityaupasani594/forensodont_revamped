@@ -1,6 +1,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.core.config import settings
+from app.core.bootstrap import DEMO_EMAIL, DEMO_PASSWORD, init_dev_environment
 from app.api.v1 import auth, cases, opg, match, report, review
 
 app = FastAPI(
@@ -19,11 +20,22 @@ app.add_middleware(
 
 @app.get("/")
 async def root():
-    return {
+    payload = {
         "message": "Welcome to Forensodont Multimodal OPG Intelligence API",
         "version": "1.0.0",
         "track": "Vision & Multimodal AI",
     }
+    if settings.ENVIRONMENT != "production":
+        payload["demo_login"] = {
+            "email": DEMO_EMAIL,
+            "password": DEMO_PASSWORD,
+        }
+    return payload
+
+@app.on_event("startup")
+async def startup_event():
+    if settings.ENVIRONMENT != "production":
+        await init_dev_environment()
 
 # Include routers
 app.include_router(auth.router, prefix=f"{settings.API_V1_STR}/auth", tags=["auth"])

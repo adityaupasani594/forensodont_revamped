@@ -3,11 +3,16 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
 final apiClientProvider = Provider<Dio>((ref) {
+  const apiBaseUrl = String.fromEnvironment(
+    'API_BASE_URL',
+    defaultValue: 'http://10.0.2.2:8000/api/v1',
+  );
+
   final dio = Dio(
     BaseOptions(
       // For Android emulator, localhost is 10.0.2.2. For iOS it's localhost.
       // In production/docker, it would be the server URL.
-      baseUrl: 'http://10.0.2.2:8000/api/v1',
+      baseUrl: apiBaseUrl,
       connectTimeout: const Duration(seconds: 10),
       receiveTimeout: const Duration(seconds: 10),
     ),

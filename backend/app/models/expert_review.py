@@ -11,7 +11,7 @@ class ExpertReview(Base):
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     case_id = Column(UUID(as_uuid=True), ForeignKey("cases.id"))
     candidate_id = Column(UUID(as_uuid=True), ForeignKey("match_candidates.id"))
-    odontologist_id = Column(UUID(as_uuid=True), ForeignKey("users.id"))
+    odontologist_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=True)
     decision = Column(String) # 'confirmed', 'rejected', 'escalated'
     comment = Column(Text, nullable=False)
     annotations = Column(JSONB)

@@ -1,17 +1,22 @@
-version: '3.9'
 services:
   api:
     build: ./backend
     ports: ["8000:8000"]
     environment:
       DATABASE_URL: postgresql+asyncpg://opg:opg@db:5432/opgdb
-      REDIS_URL: redis://redis:6379
+      REDIS_URL: redis://redis:6379/0
+      CELERY_BROKER_URL: redis://redis:6379/1
+      CELERY_RESULT_BACKEND: redis://redis:6379/2
       S3_ENDPOINT: http://minio:9000
       SECRET_KEY: dev-secret-change-in-production
       ENVIRONMENT: development
+      UPLOAD_DIR: uploads
+      REPORT_DIR: reports
     volumes:
       - ./backend:/app
       - ./ml_models:/models
+      - ./backend/uploads:/app/uploads
+      - ./backend/reports:/app/reports
     depends_on: [db, redis, minio]
     command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
 
@@ -20,9 +25,16 @@ services:
     command: celery -A app.worker.celery worker --loglevel=info -Q preprocessing,matching
     environment:
       DATABASE_URL: postgresql+asyncpg://opg:opg@db:5432/opgdb
-      REDIS_URL: redis://redis:6379
+      REDIS_URL: redis://redis:6379/0
+      CELERY_BROKER_URL: redis://redis:6379/1
+      CELERY_RESULT_BACKEND: redis://redis:6379/2
+      UPLOAD_DIR: uploads
+      REPORT_DIR: reports
     volumes:
+      - ./backend:/app
       - ./ml_models:/models
+      - ./backend/uploads:/app/uploads
+      - ./backend/reports:/app/reports
     depends_on: [db, redis]
 
   db:

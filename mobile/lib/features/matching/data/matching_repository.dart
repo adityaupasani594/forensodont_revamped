@@ -75,9 +75,11 @@ class MatchingRepository {
   }
 
   Stream<dynamic> getProgressStream(String jobId) {
-    // In production, use wss and the real host
+    final wsBaseUrl = _dio.options.baseUrl
+        .replaceFirst('https://', 'wss://')
+        .replaceFirst('http://', 'ws://');
     final channel = WebSocketChannel.connect(
-      Uri.parse('ws://10.0.2.2:8000/api/v1/match/progress/$jobId'),
+      Uri.parse('$wsBaseUrl/match/progress/$jobId'),
     );
     return channel.stream.map((event) => jsonDecode(event));
   }
@@ -118,6 +120,5 @@ class MatchingRepository {
     }
   }
 }
-
 
 

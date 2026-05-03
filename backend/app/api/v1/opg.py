@@ -8,7 +8,6 @@ from app.core.config import settings
 from app.core.database import get_db
 from app.models.opg_image import OPGImage
 from app.core.audit import log_audit_event
-from app.worker import preprocess_task
 
 router = APIRouter()
 
@@ -139,6 +138,8 @@ async def convert_dicom(file: UploadFile = File(...)):
 async def preprocess(
     opg_image_id: str
 ):
+    from app.worker import preprocess_task
+
     job_id = str(uuid.uuid4())
     # Trigger celery task
     preprocess_task.delay(opg_image_id, job_id)

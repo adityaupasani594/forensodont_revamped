@@ -7,7 +7,7 @@ from passlib.context import CryptContext
 from fastapi import Request
 from .config import settings
 
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+pwd_context = CryptContext(schemes=["argon2"], deprecated="auto")
 ALGORITHM = "HS256"
 
 redis_client = redis.from_url(settings.REDIS_URL, decode_responses=True)

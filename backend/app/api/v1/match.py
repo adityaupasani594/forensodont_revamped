@@ -2,13 +2,13 @@ import uuid
 import json
 import asyncio
 from fastapi import APIRouter, Depends, Request, WebSocket, WebSocketDisconnect, HTTPException
+import redis.asyncio as aioredis
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from app.core.database import get_db
 from app.models.match_job import MatchJob
 from app.models.match_candidate import MatchCandidate
 from app.core.audit import log_audit_event
-from app.worker import match_task, redis_client
 from app.core.config import settings
 
 router = APIRouter()
@@ -40,6 +40,8 @@ async def run_match(
     await log_audit_event(db, action="match_started", case_id=case_id, request=request)
     await db.commit()
     
+    from app.worker import match_task
+
     match_task.delay(str(case_id), opg_image_id, data.get("filters", {}), job_id)
     
     return {
@@ -50,6 +52,7 @@ async def run_match(
 @router.websocket("/progress/{job_id}")
 async def match_progress_websocket(websocket: WebSocket, job_id: str):
     await websocket.accept()
+    redis_client = aioredis.Redis.from_url(settings.REDIS_URL, decode_responses=True)
     pubsub = redis_client.pubsub()
     await pubsub.subscribe(f"job_progress:{job_id}")
     
@@ -66,6 +69,8 @@ async def match_progress_websocket(websocket: WebSocket, job_id: str):
         pass
     finally:
         await pubsub.unsubscribe(f"job_progress:{job_id}")
+        await pubsub.close()
+        await redis_client.close()
 
 @router.get("/{job_id}/results")
 async def get_match_results(job_id: uuid.UUID, db: AsyncSession = Depends(get_db)):
@@ -147,4 +152,3 @@ async def get_candidate_detail(
         "record_source": pop_record.record_source if pop_record else "Unknown",
         "features": candidate.per_tooth_matches if candidate.per_tooth_matches else {}
     }
-

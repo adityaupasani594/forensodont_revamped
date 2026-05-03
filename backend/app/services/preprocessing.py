@@ -2,7 +2,9 @@ import cv2
 import numpy as np
 from PIL import Image
 import io
+from pathlib import Path
 from typing import Dict, Any
+from app.core.config import settings
 
 class PreprocessingResult:
     def __init__(self, s3_key: str, quality_score: float, quality_flags: Dict[str, Any]):
@@ -52,7 +54,10 @@ def preprocess_opg(image_bytes: bytes, filename: str) -> PreprocessingResult:
     quality_score = (normalized_sharpness + (1 - abs(0.5 - exposure)) + 0.85) / 3.0
     
     # Save to mock S3 (local uploads dir)
-    s3_key = f"preprocessed_{filename}"
-    cv2.imwrite(f"uploads/{s3_key}", img_denoised)
+    upload_dir = Path(settings.UPLOAD_DIR)
+    upload_dir.mkdir(parents=True, exist_ok=True)
+    safe_name = Path(filename).name
+    s3_key = f"preprocessed_{safe_name}"
+    cv2.imwrite(str(upload_dir / s3_key), img_denoised)
     
     return PreprocessingResult(s3_key=s3_key, quality_score=quality_score, quality_flags=quality_flags)

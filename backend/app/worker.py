@@ -12,10 +12,14 @@ import json
 
 from app.core.config import settings
 from app.core.database import AsyncSessionLocal
+from app.models.audit_log import AuditLog
+from app.models.case import Case
+from app.models.expert_review import ExpertReview
 from app.models.match_candidate import MatchCandidate
 from app.models.match_job import MatchJob
 from app.models.opg_image import OPGImage
 from app.models.population_record import PopulationRecord
+from app.models.user import User
 from app.services.feature_extraction import extract_features
 from app.services.preprocessing import preprocess_opg
 from app.services.segmentation import segment_teeth
@@ -311,4 +315,3 @@ def match_task(self, case_id: str, opg_image_id: str, filters: dict, job_id: str
         asyncio.run(_mark_failed())
         publish_progress(job_id, "failed", "failed", detail=str(exc))
         raise
-
